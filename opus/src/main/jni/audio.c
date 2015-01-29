@@ -787,3 +787,70 @@ JNIEXPORT int Java_com_droidkit_opus_OpusLib_testCodec(JNIEnv *env, jclass class
 
     return result;
 }
+
+JNIEXPORT jlong Java_cn_com_cybertech_pm_media_audio_OpusEncoder_create(JNIEnv *env, jclass class,
+    jint sample_rate) {
+
+    int status = OPUS_OK;
+    OpusEncoder *enc = opus_encoder_create(sample_rate, 1, OPUS_APPLICATION_VOIP, &status);
+    if (status != OPUS_OK) {
+        LOGE("Error cannot create encoder: %s", opus_strerror(status));
+        return 0;
+    }
+
+    return enc;
+}
+
+JNIEXPORT int Java_cn_com_cybertech_pm_media_audio_OpusEncoder_encode(JNIEnv *env, jclass class,
+    jlong encInst, jshortArray in, jbyteArray out) {
+
+	jshort *_in = (*env)->GetShortArrayElements(env, in, NULL);
+	jbyte *_out = (*env)->GetByteArrayElements(env, out, NULL);
+	int frame_size = (*env)->GetArrayLength(env, in);
+	int max_data_bytes = (*env)->GetArrayLength(env, out);
+
+	opus_int32 len = opus_encode((OpusEncoder*)encInst, _in, frame_size, (uint8_t*)_out, max_data_bytes);
+
+	(*env)->ReleaseShortArrayElements(env, in, _in, 0);
+	(*env)->ReleaseByteArrayElements(env, out, _out, 0);
+
+	return len;
+}
+
+JNIEXPORT int Java_cn_com_cybertech_pm_media_audio_OpusEncoder_destroy(JNIEnv *env, jclass class,
+    jlong encInst) {
+    opus_encoder_destroy((OpusEncoder*)encInst);
+}
+
+JNIEXPORT jlong Java_cn_com_cybertech_pm_media_audio_OpusDecoder_create(JNIEnv *env, jclass class,
+    jint sample_rate) {
+
+    int status = OPUS_OK;
+    OpusDecoder *dec = opus_decoder_create(sample_rate, 1, &status);
+    if (status != OPUS_OK) {
+        LOGE("Error cannot create decoder: %s", opus_strerror(status));
+        return 0;
+    }
+
+    return dec;
+}
+
+JNIEXPORT int Java_cn_com_cybertech_pm_media_audio_OpusDecoder_decode(JNIEnv *env, jclass class,
+    jlong decInst, jbyteArray in, jint in_offset, jint in_count, jshortArray out) {
+
+	jbyte *_in = (*env)->GetByteArrayElements(env, in, NULL);
+	jshort *_out = (*env)->GetShortArrayElements(env, out, NULL);
+	int frame_size = (*env)->GetArrayLength(env, out);
+
+	opus_int32 output_samps = opus_decode((OpusDecoder*)decInst, (uint8_t*)(_in + in_offset), in_count, _out, frame_size, 0);
+
+	(*env)->ReleaseByteArrayElements(env, in, _in, 0);
+	(*env)->ReleaseShortArrayElements(env, out, _out, 0);
+
+	return output_samps;
+}
+
+JNIEXPORT void Java_cn_com_cybertech_pm_media_audio_OpusDecoder_destroy(JNIEnv *env, jclass class,
+    jlong decInst) {
+    opus_decoder_destroy((OpusDecoder*)decInst);
+}
