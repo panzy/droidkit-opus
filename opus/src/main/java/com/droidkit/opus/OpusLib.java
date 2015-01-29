@@ -97,4 +97,16 @@ public class OpusLib {
      * @return pcm duration
      */
     public native long getTotalPcmDuration();
+
+    /**
+     * Encode & decode.
+     *
+     * usually the output PCM will not literally match the input PCM, but they sound the same.
+     *
+     * @param input_sample_rate
+     * @param input_pcm_path
+     * @param output_pcm_path
+     * @return 1 on success.
+     */
+    public native int testCodec(int input_sample_rate, String input_pcm_path, String output_pcm_path);
 }

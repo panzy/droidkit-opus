@@ -185,6 +185,62 @@ int opus_header_to_packet(const OpusHeader *h, unsigned char *packet, int len) {
     return p.pos;
 }
 
+int testCodec(int input_sample_rate,
+    const char *input_pcm_path,
+	const char *output_pcm_path) {
+    if (!input_pcm_path) {
+        return 0;
+    }
+
+    FILE *fdin = fopen(input_pcm_path, "rb");
+    if (!fdin) {
+        return 0;
+    }
+
+    FILE *fdout = fopen(output_pcm_path, "wb");
+    if (!fdout) {
+        return 0;
+    }
+
+    int result = OPUS_OK;
+
+
+    OpusEncoder *enc = opus_encoder_create(input_sample_rate, 1, OPUS_APPLICATION_VOIP, &result);
+    if (result != OPUS_OK) {
+        LOGE("Error cannot create encoder: %s", opus_strerror(result));
+        return 0;
+    }
+
+    OpusDecoder *dec = opus_decoder_create(input_sample_rate, 1, &result);
+    if (result != OPUS_OK) {
+        LOGE("Error cannot create decoder: %s", opus_strerror(result));
+        return 0;
+    }
+
+    const int FRAME_SIZE = 160; // in samples
+    const int MAX_DATA_BYTES = FRAME_SIZE * 2;
+    opus_int16 pcm_in[FRAME_SIZE];
+    opus_int16 pcm_out[FRAME_SIZE];
+    unsigned char data[MAX_DATA_BYTES];
+    size_t n;
+    while ((n = fread(pcm_in, sizeof(opus_int16), FRAME_SIZE, fdin)) == FRAME_SIZE) {
+        opus_int32 len = opus_encode(enc, pcm_in, FRAME_SIZE, data, MAX_DATA_BYTES);
+        LOGI("opus_encode, %d Samples -> %d Bytes", FRAME_SIZE, len);
+
+        opus_int32 output_samps = opus_decode(dec, data, len, pcm_out, FRAME_SIZE, 0);
+        LOGI("opus_decode, %d Bytes -> %d Samples ", len, output_samps);
+
+        // usually pcm_out will not literally match pcm_in, but they sound the same.
+        fwrite(pcm_out, sizeof(opus_int16), output_samps, fdout);
+    }
+
+    opus_encoder_destroy(enc);
+    fclose(fdin);
+    fclose(fdout);
+
+    return 1;
+}
+
 #define writeint(buf, base, val) do { buf[base + 3] = ((val) >> 24) & 0xff; \
 buf[base + 2]=((val) >> 16) & 0xff; \
 buf[base + 1]=((val) >> 8) & 0xff; \
@@ -709,6 +765,24 @@ JNIEXPORT int Java_com_droidkit_opus_OpusLib_isOpusFile(JNIEnv *env, jclass clas
 
     if (pathStr != 0) {
         (*env)->ReleaseStringUTFChars(env, path, pathStr);
+    }
+
+    return result;
+}
+
+JNIEXPORT int Java_com_droidkit_opus_OpusLib_testCodec(JNIEnv *env, jclass class,
+	 jint input_sample_rate, jstring input_pcm_path, jstring output_pcm_path) {
+    const char *input_pcm_path_str = (*env)->GetStringUTFChars(env, input_pcm_path, 0);
+    const char *output_pcm_path_str = (*env)->GetStringUTFChars(env, output_pcm_path, 0);
+
+    int result = testCodec(input_sample_rate, input_pcm_path_str, output_pcm_path_str);
+
+    if (input_pcm_path_str != 0) {
+        (*env)->ReleaseStringUTFChars(env, input_pcm_path, input_pcm_path_str);
+    }
+
+    if (output_pcm_path_str != 0) {
+        (*env)->ReleaseStringUTFChars(env, output_pcm_path, output_pcm_path_str);
     }
 
     return result;
