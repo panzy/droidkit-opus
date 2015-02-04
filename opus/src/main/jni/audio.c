@@ -798,6 +798,16 @@ JNIEXPORT jlong Java_cn_com_cybertech_pm_media_audio_OpusEncoder_create(JNIEnv *
         return 0;
     }
 
+    int result = opus_encoder_ctl(enc, OPUS_SET_INBAND_FEC(1));
+    if (result != OPUS_OK) {
+        LOGE("Error OPUS_SET_INBAND_FEC returned: %s", opus_strerror(result));
+    }
+
+    result = opus_encoder_ctl(enc, OPUS_SET_PACKET_LOSS_PERC(130));
+    if (result != OPUS_OK) {
+        LOGE("Error OPUS_SET_PACKET_LOSS_PERC returned: %s", opus_strerror(result));
+    }
+
     return enc;
 }
 
